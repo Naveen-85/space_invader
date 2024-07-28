@@ -1,6 +1,7 @@
 import pygame
 import math
 import random
+from pygame import mixer
 
 # Initialize all pygame functions
 pygame.init()
@@ -14,10 +15,9 @@ SINE_ANGLE_INCREMENT = 1
 ENEMY_WIDTH = 62
 ENEMY_HEIGHT = 62
 NUM_ENEMIES = 10
-ENEMY_SPEED_X = 1
+ENEMY_SPEED_X = 2
 ENEMY_DESCENT = 10
-ENEMY_SPEED_INCREMENT = 0.003
-
+ENEMY_SPEED_INCREMENT = 0.09
 # Bullet variables
 bullet_width = 32
 bullet_height = 32
@@ -43,6 +43,10 @@ playerIm = pygame.image.load('otaku.png')
 enemyIm = pygame.image.load('oni.png')
 background = pygame.image.load('space_ia.jpg')
 bullet_image = pygame.image.load('bullet original.png')
+# adding Background music 
+mixer.music.load('background.wav')
+mixer.music.play(-1)
+collision_sound = mixer.Sound('explosion.wav')
 
 # Initial positions
 playerX = (SCREEN_WIDTH - playerIm.get_width()) // 2
@@ -80,6 +84,8 @@ def handle_input():
     # Shoot bullet when space bar is pressed
     if keys[pygame.K_SPACE]:
         if bullet_state == "ready":
+            bullet_sound=mixer.Sound('laser.wav')
+            bullet_sound.play()
             bulletX = playerX + (playerIm.get_width() - bullet_width) // 2
             bulletY = playerY
             bullets.append({'x': bulletX, 'y': bulletY, 'active': True})
@@ -153,6 +159,7 @@ def update_bullets():
                     enemy['y'] < bullet['y'] < enemy['y'] + ENEMY_HEIGHT):
                     enemies.remove(enemy)
                     bullet['active'] = False
+                    collision_sound.play()
                     score += 10  # Increase score by 10
                     break
 
@@ -171,7 +178,7 @@ def draw_score():
     screen.blit(score_surface, (10, 10))
 
 def main():
-    global angle, running
+    global angle, running   
 
     running = True
     game_over_message = ""
@@ -222,6 +229,7 @@ def main():
         pygame.display.update()
 
     pygame.quit()
+
 
 if __name__ == "__main__":
     main()
