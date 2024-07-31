@@ -7,7 +7,7 @@ A classic Space Invaders game implemented using Pygame.
 Follow these steps to set up the project on your local machine:
 
 1.Clone the Repository:
-     git clone https://github.com/yourusername/your-repo-name.git
+ (https://github.com/Naveen-85/space_invader.git)
 2.Create a Virtual Environment :
      python -m venv venv
 3. Activate the Virtual Environment:
