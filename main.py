@@ -10,381 +10,379 @@ pygame.init()
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 PLAYER_Y = 480
-PLAYER_SPEED = 0.5
+PLAYER_SPEED = 5
 SINE_ANGLE_INCREMENT = 1
 ENEMY_WIDTH = 62
 ENEMY_HEIGHT = 62
 NUM_ENEMIES = 10
-ENEMY_SPEED_X = 0.5
+ENEMY_SPEED_X = 1
 ENEMY_DESCENT = 10
-ENEMY_SPEED_INCREMENT = 0.001
-ENEMY_LIFE = 2
+ENEMY_LIFE = 1
 MAX_LEVELS = 3
-
-BOSS_LIFE = 50
-BOSS_SPEED_X = 0.2
+BOSS_LIFE = 10
+BOSS_SPEED_X = 0.9
 BOSS_SHOOT_INTERVAL = 2000  # Boss shoots every 2 seconds
+BULLET_WIDTH = 16
+BULLET_HEIGHT = 16
+BULLET_SPEED = 5
 
-# Bullet variables
-bullet_width = 16
-bullet_height = 16
-bullet_speed = 2
-bullet_state = "ready"  # "ready" or "fire"
+class Player(pygame.sprite.Sprite):
+    def __init__(self, img):
+        super().__init__()
+        self.img = img
+        self.rect = self.img.get_rect()
+        self.rect.x = (SCREEN_WIDTH - self.img.get_width()) // 2
+        self.rect.y = PLAYER_Y
+        self.x_change = 0
+        self.angle = 0
 
-# Bullet lists
-bullets = []
-boss_bullets = []
+    def move(self, dx):
+        self.x_change = dx
 
-# Score and Level
-score = 0
-level = 2
+    def update(self):
+        self.rect.x += self.x_change
+        if self.rect.x < 0:
+            self.rect.x = 0
+        elif self.rect.x > SCREEN_WIDTH - self.img.get_width():
+            self.rect.x = SCREEN_WIDTH - self.img.get_width()
+        self.angle = (self.angle + SINE_ANGLE_INCREMENT) % 360
+        self.rect.y = PLAYER_Y + 25 * math.sin(math.radians(self.angle))
 
-# Create our screen
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Space Invaders")
-icon = pygame.image.load('alien.png')
-pygame.display.set_icon(icon)
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, x, y, speed_x, img, life):
+        super().__init__()
+        self.img = img
+        self.rect = self.img.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.speed_x = speed_x
+        self.life = life
+        self.direction = 1
 
-# Load images
-playerIm = pygame.image.load('otaku.png')
-enemyIm1 = pygame.image.load('oni.png')
-enemyIm2 = pygame.image.load('oni2.png')
-bossIm = pygame.image.load('oni_boss.png')
-background = pygame.image.load('space_ia.jpg')
-bullet_image = pygame.image.load('bullet.png')
-boss_bullet_image = pygame.image.load('bullet.png')
+    def update(self):
+        self.rect.x += self.speed_x * self.direction
+        if self.rect.right > SCREEN_WIDTH or self.rect.left < 0:
+            self.direction *= -1
+            self.rect.y += ENEMY_DESCENT
 
-# Adding Background music
-mixer.music.load('background.wav')
-mixer.music.play(-1)
-collision_sound = mixer.Sound('explosion.wav')
-level_up_sound = mixer.Sound('background.wav')
+class Boss(pygame.sprite.Sprite):
+    def __init__(self, x, y, speed_x, life, img):
+        super().__init__()
+        self.img = img
+        self.rect = self.img.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.speed_x = speed_x
+        self.life = life
 
-# Initial positions
-playerX = (SCREEN_WIDTH - playerIm.get_width()) // 2
-playerY = PLAYER_Y
-playerX_change = 0
-angle = 0
+    def update(self):
+        # Mueve el jefe horizontalmente
+        self.rect.x += self.speed_x
+        # Cambia de dirección si llega a los bordes de la pantalla
+        if self.rect.x <= 0 or self.rect.x >= SCREEN_WIDTH - self.rect.width:
+            self.speed_x = -self.speed_x
 
-# Create a list of enemies
-def create_enemies(num_enemies, level):
-    enemies = []
-    for _ in range(num_enemies):
-        enemyX = random.randint(0, SCREEN_WIDTH - ENEMY_WIDTH)
-        enemyY = random.randint(50, 150)
-        speedX = random.choice([ENEMY_SPEED_X, -ENEMY_SPEED_X])
-        life = ENEMY_LIFE + level - 1  # Increment life with level
-        image = enemyIm1 if life < 3 else enemyIm2  # Change image if life is 4 or higher
-        enemies.append({'x': enemyX, 'y': enemyY, 'speedX': speedX, 'angle': random.uniform(0, 360), 'life': life, 'image': image})
-    return enemies
 
-# Create boss enemy
-def create_boss():
-    return [{'x': (SCREEN_WIDTH - ENEMY_WIDTH) // 2, 'y': 50, 'angle': random.uniform(0, 360), 'speedX': BOSS_SPEED_X, 'life': BOSS_LIFE, 'image': bossIm}]
 
-enemies = create_enemies(NUM_ENEMIES, level)
-boss = create_boss()
+class Bullet(pygame.sprite.Sprite):
+    def __init__(self, x, y, img):
+        super().__init__()
+        self.img = img
+        self.rect = self.img.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.active = True
 
-def draw_image(image, x, y):
-    screen.blit(image, (x, y))
+    def update(self):
+        if self.active:
+            self.rect.y -= BULLET_SPEED
+            if self.rect.y < 0:
+                self.kill()
 
-def draw_text(message, font_size, color, position):
-    font = pygame.font.SysFont(None, font_size)
-    text_surface = font.render(message, True, color)
-    screen.blit(text_surface, position)
+class BossBullet(Bullet):
+    def __init__(self, x, y, img):
+        super().__init__(x, y, img)
 
-def handle_input():
-    global playerX_change, bullet_state, bulletX, bulletY
-    keys = pygame.key.get_pressed()
-    
-    if keys[pygame.K_LEFT]:
-        playerX_change = -PLAYER_SPEED
-    elif keys[pygame.K_RIGHT]:
-        playerX_change = PLAYER_SPEED
-    else:
-        playerX_change = 0
+    def update(self):
+        if self.active:
+            self.rect.y += BULLET_SPEED  # Ajustar la velocidad del bullet del jefe
+            if self.rect.y > SCREEN_HEIGHT:
+                self.kill()
 
-    if keys[pygame.K_SPACE]:
-        if bullet_state == "ready":
-            bullet_sound = mixer.Sound('laser.wav')
-            bullet_sound.play()
-            bulletX = playerX + (playerIm.get_width() - bullet_width) // 2
-            bulletY = playerY
-            bullets.append({'x': bulletX, 'y': bulletY, 'active': True})
-            bullet_state = "fire"
 
-def fire_bullet():
-    global bullet_state
-    if bullet_state == "fire":
+class CollisionHandler:
+    @staticmethod
+    def check_collision(sprite1, sprite2):
+        return sprite1.rect.colliderect(sprite2.rect)
+
+    @staticmethod
+    def handle_bullet_enemy_collision(bullets, enemies):
+        score_increase = 0
         for bullet in bullets:
-            if bullet['active']:
-                screen.blit(bullet_image, (bullet['x'] + 16, bullet['y'] + 10))
-                bullet['y'] -= bullet_speed
-                if bullet['y'] < 0:
-                    bullet['active'] = False
-        if all(not b['active'] for b in bullets):
-            bullet_state = "ready"
+            if bullet.active:
+                collided_enemy = pygame.sprite.spritecollideany(bullet, enemies)
+                if collided_enemy:
+                    collided_enemy.life -= 1
+                    bullet.kill()  # Remove the bullet from the group
+                    if collided_enemy.life <= 0:
+                        collided_enemy.kill()  # Remove the enemy from the group
+                        score_increase += 10  # Increment score by a value
+        return score_increase
 
-def update_player_position():
-    global playerX, playerY
-    playerX += playerX_change
-    if playerX < 0:
-        playerX = 0
-    elif playerX > SCREEN_WIDTH - playerIm.get_width():
-        playerX = SCREEN_WIDTH - playerIm.get_width()
-    playerY = PLAYER_Y + 25 * math.sin(math.radians(angle))
+    @staticmethod
+    def handle_bullet_boss_collision(bullets, boss):
+        score_increase = 0
+        for bullet in bullets:
+            if bullet.active:
+                collided_boss = pygame.sprite.spritecollideany(bullet, boss)
+                if collided_boss:
+                    collided_boss.life -= 1
+                    bullet.kill()  # Remove the bullet from the group
+                    if collided_boss.life <= 0:
+                        collided_boss.kill()  # Remove the boss from the group
+                        score_increase += 100  # Increment score by a value
+        return score_increase
 
-def update_enemy_positions(enemies):
-    global ENEMY_SPEED_X
-    if not enemies:
-        return True  # Indicate that all enemies are defeated
-
-    for enemy in enemies:
-        enemy['x'] += enemy['speedX']
-        enemy['y'] += 0.1 * math.sin(math.radians(enemy['angle']))
-        enemy['angle'] += SINE_ANGLE_INCREMENT
-
-        if enemy['x'] > SCREEN_WIDTH - ENEMY_WIDTH or enemy['x'] < 0:
-            enemy['speedX'] = -enemy['speedX']
-            enemy['y'] += ENEMY_DESCENT
-            ENEMY_SPEED_X += ENEMY_SPEED_INCREMENT
-            update_enemy_speeds()
-
-        if enemy['y'] >= PLAYER_Y - ENEMY_HEIGHT:
-            return True
-
-    return False
-
-def update_enemy_speeds():
-    global ENEMY_SPEED_X
-    for e in enemies:
-        e['speedX'] = ENEMY_SPEED_X if e['speedX'] > 0 else -ENEMY_SPEED_X
-
-def update_bullets():
-    global score, enemies
-    for bullet in bullets[:]:
-        if bullet['active']:
-            bullet['y'] -= bullet_speed
-            if bullet['y'] < 0:
-                bullet['active'] = False
-                continue
-            check_bullet_collision(bullet, enemies)
-
-def check_bullet_collision(bullet, enemies):
-    global score
-    for enemy in enemies[:]:
-        if (enemy['x'] < bullet['x'] + bullet_width and
-            enemy['x'] + ENEMY_WIDTH > bullet['x'] and
-            enemy['y'] < bullet['y'] + bullet_height and
-            enemy['y'] + ENEMY_HEIGHT > bullet['y']):
-            enemy['life'] -= 1
-            bullet['active'] = False
-            if enemy['life'] <= 0:
-                enemies.remove(enemy)
-                collision_sound.play()
-                score += 10
-            break
-
-
-def draw_score():
-    font = pygame.font.SysFont(None, 36)
-    score_surface = font.render(f"Score: {score}", True, (255, 255, 255))
-    screen.blit(score_surface, (10, 10))
-
-def show_level_message(level):
-    level_up_sound.play()
-    draw_text(f"Level {level} Complete!", 48, (255, 255, 255), (SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2 - 50))
-    draw_text("Press N to go to the next level or R to repeat the level", 36, (255, 255, 255), (SCREEN_WIDTH // 2 - 250, SCREEN_HEIGHT // 2 + 10))
-    pygame.display.update()
-
-    return wait_for_level_transition()
-
-def wait_for_level_transition():
-    waiting = True
-    while waiting:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                exit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_n:
-                    return "next"
-                if event.key == pygame.K_r:
-                    return "repeat"
-
-def boss_shoot():
-    if boss:
-        bossX = boss[0]['x']
-        bossY = boss[0]['y']
-        boss_bullets.append({'x': bossX + ENEMY_WIDTH // 2, 'y': bossY + ENEMY_HEIGHT, 'active': True})
-
-def update_boss_position():
-    if not boss:
-        return
-    b = boss[0]
-    b['x'] += b['speedX']
-    b['y'] += 0.1 * math.sin(math.radians(b['angle']))
-
-    # Horizontal boundary checks
-    if b['x'] < 0:
-        b['x'] = 0
-        b['speedX'] *= -1
-    elif b['x'] > SCREEN_WIDTH - ENEMY_WIDTH:
-        b['x'] = SCREEN_WIDTH - ENEMY_WIDTH
-        b['speedX'] *= -1
-
-    # Vertical boundary checks
-    if b['y'] < 0:
-        b['y'] = 0
-    elif b['y'] > SCREEN_HEIGHT - ENEMY_HEIGHT:
-        b['y'] = SCREEN_HEIGHT - ENEMY_HEIGHT
-
-def update_boss_bullets():
-    for bullet in boss_bullets[:]:
-        if bullet['active']:
-            bullet['y'] += bullet_speed // 2
-            screen.blit(boss_bullet_image, (bullet['x'], bullet['y']))
-            if bullet['y'] > SCREEN_HEIGHT:
-                boss_bullets.remove(bullet)
-
-def check_player_boss_bullet_collision():
-    for bullet in boss_bullets:
-        if (bullet['x'] < playerX + playerIm.get_width() < bullet['x'] + bullet_width or
-            bullet['x'] < playerX < bullet['x'] + bullet_width) and \
-           (bullet['y'] < playerY + playerIm.get_height() < bullet['y'] + bullet_height or
-            bullet['y'] < playerY < bullet['y'] + bullet_height):
-            return True
-    return False
-
-def check_bullet_boss_collision():
-    global score, boss
-    if not boss:
-        return
-    b = boss[0]
-    for bullet in bullets[:]:
-        if bullet['active']:
-            if (b['x'] < bullet['x'] + bullet_width < b['x'] + ENEMY_WIDTH or
-                b['x'] < bullet['x'] < b['x'] + ENEMY_WIDTH) and \
-               (b['y'] < bullet['y'] + bullet_height < b['y'] + ENEMY_HEIGHT or
-                b['y'] < bullet['y'] < b['y'] + ENEMY_HEIGHT):
-                b['life'] -= 1
-                bullet['active'] = False
-                if b['life'] <= 0:
-                    boss = []
-                    collision_sound.play()
-                    score += 50
-                    return True
-    return False
-
-def check_player_enemy_collision():
-    global enemies
-    for enemy in enemies:
-        if (enemy['x'] < playerX + playerIm.get_width() < enemy['x'] + ENEMY_WIDTH or
-            enemy['x'] < playerX < enemy['x'] + ENEMY_WIDTH) and \
-           (enemy['y'] < playerY + playerIm.get_height() < enemy['y'] + ENEMY_HEIGHT or
-            enemy['y'] < playerY < enemy['y'] + ENEMY_HEIGHT):
-            return True
-    return False
-
-def main():
-    global angle, running, enemies, boss, level, boss_shoot_timer
-
-    running = True
-    game_over_message = ""
-    boss_shoot_timer = 0
-    last_boss_shoot_time = pygame.time.get_ticks()
-
-    while running:
-        screen.fill((0, 0, 0))
-        screen.blit(background, (0, 0))
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-
-        handle_input()
-        update_player_position()
-
-        if level < MAX_LEVELS:
-            if update_enemy_positions(enemies):
-                game_over_message = "Game Over!"
-                running = False
-            if check_player_enemy_collision():
-                game_over_message = "Game Over!"
-                running = False
-            update_bullets()
-            fire_bullet()
-            if not enemies:
-                handle_level_completion()
-        else:
-            update_boss_position()
-            update_boss_bullets()
-            if pygame.time.get_ticks() - last_boss_shoot_time >= BOSS_SHOOT_INTERVAL:
-                boss_shoot()
-                last_boss_shoot_time = pygame.time.get_ticks()
-            if check_player_boss_bullet_collision():
-                game_over_message = "Game Over!"
-                running = False
-            if check_bullet_boss_collision():
-                handle_level_completion()
-                if not boss:  # Boss defeated
-                    game_over_message = "Congratulations! You won!"
-                    running = False
-            update_bullets()
-            fire_bullet()
-
-        angle += SINE_ANGLE_INCREMENT
-
-        draw_image(playerIm, playerX, playerY)
-        draw_game_elements()
-        draw_score()
-
-        if not running and game_over_message:
-            draw_text(game_over_message, 72, (255, 0, 0), (SCREEN_WIDTH // 2 - 200, SCREEN_HEIGHT // 2 - 50))
-        
-        pygame.display.update()
-
-    show_final_screen()
-
-def handle_level_completion():
-    global level, enemies, boss
-    if level < MAX_LEVELS:
-        level_message = show_level_message(level)
-        if level_message == "next":
-            level += 1
-            enemies = create_enemies(NUM_ENEMIES, level)
-        elif level_message == "repeat":
-            enemies = create_enemies(NUM_ENEMIES, level)
-    else:
-        level_message = show_level_message("Final Boss")
-        if level_message == "next":
-            boss = create_boss()
-        elif level_message == "repeat":
-            enemies = create_enemies(NUM_ENEMIES, MAX_LEVELS)
-
-def draw_game_elements():
-    for bullet in bullets:
-        if bullet['active']:
-            draw_image(bullet_image, bullet['x'], bullet['y'])
-    if level < MAX_LEVELS:
+    @staticmethod
+    def handle_player_collision(player, enemies):
         for enemy in enemies:
-            draw_image(enemy['image'], enemy['x'], enemy['y'])
-    else:
-        if boss:
-            draw_image(boss[0]['image'], boss[0]['x'], boss[0]['y'])
-        for bullet in boss_bullets:
-            if bullet['active']:
-                draw_image(boss_bullet_image, bullet['x'], bullet['y'])
+            if CollisionHandler.check_collision(player, enemy):
+                return True
+        return False
 
-def show_final_screen():
-    final_screen = True
-    while final_screen:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                final_screen = False
+    @staticmethod
+    def handle_boss_bullet_player_collision(boss_bullets, player):
+        for bullet in boss_bullets:
+            if bullet.active:
+                if CollisionHandler.check_collision(bullet, player):
+                    return True
+        return False
+
+
+
+class Game:
+    def __init__(self):
+        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        pygame.display.set_caption("Space Invaders")
+        self.icon = pygame.image.load("alien.png")
+        pygame.display.set_icon(self.icon)
+
+        self.player_img = pygame.image.load("otaku.png")
+        self.enemy_img1 = pygame.image.load("oni.png")
+        self.enemy_img2 = pygame.image.load("oni2.png")
+        self.boss_img = pygame.image.load("oni_boss.png")
+        self.background = pygame.image.load("space_ia.jpg")
+        self.bullet_image = pygame.image.load("bullet.png")
+        self.boss_bullet_image = pygame.image.load("bullet.png")
+
+        mixer.music.load("background.wav")
+        mixer.music.play(-1)
+        self.collision_sound = mixer.Sound("explosion.wav")
+        self.level_up_sound = mixer.Sound("background.wav")
+
+        self.level = 1
+        self.score = 0
+        self.enemies = pygame.sprite.Group(self.create_enemies(NUM_ENEMIES, self.level))
+        self.boss = pygame.sprite.Group()
+        self.bullets = pygame.sprite.Group()
+        self.boss_bullets = pygame.sprite.Group()
+        self.player = Player(self.player_img)
+        self.bullet_state = "ready"
+        self.last_boss_shoot_time = pygame.time.get_ticks()
+        self.running = True
+        self.game_over = False
+
+    def create_enemies(self, num_enemies, level):
+        enemies = []
+        for _ in range(num_enemies):
+            enemy_img = self.enemy_img1 if level < 2 else self.enemy_img2
+            enemy = Enemy(
+                random.randint(0, SCREEN_WIDTH - ENEMY_WIDTH),
+                random.randint(50, 150),
+                ENEMY_SPEED_X,
+                enemy_img,
+                ENEMY_LIFE + level - 1
+            )
+            enemies.append(enemy)
+        return enemies
+
+    def create_boss(self):
+        if self.level == MAX_LEVELS:
+            return Boss(
+                (SCREEN_WIDTH - ENEMY_WIDTH) // 2,
+                50,
+                BOSS_SPEED_X,
+                BOSS_LIFE,
+                self.boss_img
+            )
+        return None
+
+    def draw_image(self, image, x, y):
+        self.screen.blit(image, (x, y))
+
+    def draw_text(self, message, font_size, color, position):
+        font = pygame.font.SysFont(None, font_size)
+        text_surface = font.render(message, True, color)
+        self.screen.blit(text_surface, position)
+
+    def handle_input(self):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            self.player.move(-PLAYER_SPEED // 2)  # Ajustar la velocidad del jugador
+        elif keys[pygame.K_RIGHT]:
+            self.player.move(PLAYER_SPEED // 2)  # Ajustar la velocidad del jugador
+        else:
+            self.player.move(0)
+
+        if keys[pygame.K_SPACE]:
+            if self.bullet_state == "ready":
+                bullet_sound = mixer.Sound("laser.wav")
+                bullet_sound.play()
+                bullet_x = self.player.rect.centerx - BULLET_WIDTH // 2
+                bullet_y = self.player.rect.top
+                self.bullets.add(Bullet(bullet_x, bullet_y, self.bullet_image))
+                self.bullet_state = "fired"
+        else:
+            self.bullet_state = "ready"
+
+    def update_entities(self):
+        self.player.update()
+        self.enemies.update()
+        self.boss.update()
+        self.bullets.update()
+        self.boss_bullets.update()
+
+    def check_collisions(self):
+        score_increase = CollisionHandler.handle_bullet_enemy_collision(self.bullets, self.enemies)
+        if score_increase is not None:
+            self.score += score_increase
+
+        score_increase = CollisionHandler.handle_bullet_boss_collision(self.bullets, self.boss)
+        if score_increase is not None:
+            self.score += score_increase
+
+        if CollisionHandler.handle_player_collision(self.player, self.enemies):
+            self.running = False
+            self.game_over = True
+
+        if CollisionHandler.handle_boss_bullet_player_collision(self.boss_bullets, self.player):
+            self.running = False
+            self.game_over = True
+
+
+
+    def handle_level_completion(self):
+        self.draw_text(f"Level {self.level} Complete!", 48, (255, 255, 255), (SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2 - 50))
+        self.draw_text("Press N to go to the next level or R to repeat the level", 36, (255, 255, 255), (SCREEN_WIDTH // 2 - 250, SCREEN_HEIGHT // 2 + 10))
+        pygame.display.update()
+        return self.wait_for_level_transition()
+
+    def wait_for_level_transition(self):
+        waiting = True
+        while waiting:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_n:
+                        return "next"
+                    if event.key == pygame.K_r:
+                        return "repeat"
+
+    def handle_level(self):
+        level_message = self.handle_level_completion()
+        if level_message == "next":
+            self.level += 1
+            if self.level < MAX_LEVELS:
+                self.enemies = pygame.sprite.Group(self.create_enemies(NUM_ENEMIES, self.level))
+                self.boss.empty()
+            else:
+                self.enemies.empty()
+                boss = self.create_boss()
+                if boss:
+                    self.boss.add(boss)
+        elif level_message == "repeat":
+            if self.level < MAX_LEVELS:
+                self.enemies = pygame.sprite.Group(self.create_enemies(NUM_ENEMIES, self.level))
+            else:
+                self.boss.empty()
+                boss = self.create_boss()
+                if boss:
+                    self.boss.add(boss)
+
+    def boss_shoot(self):
+        for b in self.boss:
+            bullet_x = b.rect.centerx - BULLET_WIDTH // 2
+            bullet_y = b.rect.bottom
+            self.boss_bullets.add(BossBullet(bullet_x, bullet_y, self.boss_bullet_image))
+
+    def show_game_over(self):
+        self.screen.fill((0, 0, 0))
+        self.draw_text("Game Over", 64, (255, 0, 0), (SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2 - 50))
+        self.draw_text(f"Final Score: {self.score}", 48, (255, 255, 255), (SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2 + 10))
+        self.draw_text("Press Q to Quit or R to Restart", 36, (255, 255, 255), (SCREEN_WIDTH // 2 - 200, SCREEN_HEIGHT // 2 + 70))
         pygame.display.update()
 
-    pygame.quit()
+    def wait_for_game_over_input(self):
+        waiting = True
+        while waiting:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_q:
+                        pygame.quit()
+                        exit()
+                    if event.key == pygame.K_r:
+                        self.__init__()  # Reinicia el juego
+                        self.main()
+                        waiting = False
+
+    def main(self):
+        while True:
+            if self.running:
+                self.screen.fill((0, 0, 0))
+                self.screen.blit(self.background, (0, 0))
+
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        exit()
+
+                self.handle_input()
+                self.update_entities()
+                self.check_collisions()
+
+                if self.level < MAX_LEVELS:
+                    if not self.enemies:
+                        self.handle_level()
+                else:
+                    if pygame.time.get_ticks() - self.last_boss_shoot_time >= BOSS_SHOOT_INTERVAL:
+                        self.boss_shoot()
+                        self.last_boss_shoot_time = pygame.time.get_ticks()
+                    if not self.boss:
+                        self.running = False
+                        self.game_over = True
+
+                self.draw_image(self.player.img, self.player.rect.x, self.player.rect.y)
+                for enemy in self.enemies:
+                    self.draw_image(enemy.img, enemy.rect.x, enemy.rect.y)
+                for bullet in self.bullets:
+                    self.draw_image(bullet.img, bullet.rect.x, bullet.rect.y)
+                for b in self.boss:
+                    self.draw_image(b.img, b.rect.x, b.rect.y)
+                for boss_bullet in self.boss_bullets:
+                    self.draw_image(boss_bullet.img, boss_bullet.rect.x, boss_bullet.rect.y)
+
+                self.draw_text(f"Score: {self.score}", 36, (255, 255, 255), (10, 10))
+                pygame.display.update()
+            else:
+                self.show_game_over()
+                self.wait_for_game_over_input()
 
 if __name__ == "__main__":
-    main()
+    game = Game()
+    game.main()
+ 

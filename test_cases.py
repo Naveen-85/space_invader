@@ -1,60 +1,81 @@
+import pygame
 import unittest
-from main import update_enemy_positions, check_bullet_collision, create_enemies, create_boss, ENEMY_WIDTH, ENEMY_HEIGHT
+from main import BOSS_LIFE, MAX_LEVELS, Game, Player, Enemy, Boss, Bullet, BossBullet, CollisionHandler
 
-class TestGameFunctions(unittest.TestCase):
-
+class TestGame(unittest.TestCase):
     def setUp(self):
-        # Setup initial state for tests
-        self.enemies = create_enemies(10, 1)
-        self.bullets = [{'x': 100, 'y': 100, 'active': True}]
-        self.boss = create_boss()
+        pygame.init()
+        self.game = Game()
+        self.player_img = pygame.image.load("otaku.png")
+        self.enemy_img = pygame.image.load("oni.png")
+        self.bullet_img = pygame.image.load("bullet.png")
+        self.boss_img = pygame.image.load("oni_boss.png")
 
-    def test_update_enemy_positions(self):
-        result = update_enemy_positions(self.enemies)
-        # Expect False if enemies are not defeated yet
-        self.assertFalse(result)
-        # Further checks on enemies' positions or speed can be added here
+    def tearDown(self):
+        pygame.quit()
 
-    def test_check_bullet_collision(self):
-    # Setup an enemy and bullet in a collision path
-        enemy = {'x': 90, 'y': 90, 'life': 1, 'image': None}
-        bullet = {'x': 90, 'y': 90, 'active': True}
-        self.bullets.append(bullet)
-        self.enemies.append(enemy)
+    def test_player_movement(self):
+        player = Player(self.player_img)
+        initial_x = player.rect.x
+        player.move(5)
+        player.update()
+        self.assertNotEqual(player.rect.x, initial_x)
+        player.move(-5)
+        player.update()
+        self.assertEqual(player.rect.x, initial_x)
 
-        # Call the collision check
-        check_bullet_collision(bullet, self.enemies)
+    def test_enemy_movement(self):
+        enemy = Enemy(100, 100, 5, self.enemy_img, 1)
+        initial_x = enemy.rect.x
+        enemy.update()
+        self.assertNotEqual(enemy.rect.x, initial_x)
+        enemy.rect.x = 0
+        enemy.update()
+        self.assertEqual(enemy.direction, 1)
 
-        # Debugging
-        print(f"Bullet active state: {bullet['active']}")
-        print(f"Enemy life: {enemy['life']}")
+    def test_bullet_movement(self):
+        bullet = Bullet(100, 100, self.bullet_img)
+        initial_y = bullet.rect.y
+        bullet.update()
+        self.assertLess(bullet.rect.y, initial_y)
 
-        # Verify the bullet is no longer active and enemy life is reduced
-        self.assertFalse(bullet['active'])
-        self.assertEqual(enemy['life'], 0)
+    def test_boss_bullet_movement(self):
+        boss_bullet = BossBullet(100, 100, self.bullet_img)
+        initial_y = boss_bullet.rect.y
+        boss_bullet.update()
+        self.assertGreater(boss_bullet.rect.y, initial_y)
 
+    def test_player_enemy_collision(self):
+        player = Player(self.player_img)
+        enemy = Enemy(player.rect.x, player.rect.y, 5, self.enemy_img, 1)
+        self.assertTrue(CollisionHandler.check_collision(player, enemy))
 
+    def test_bullet_enemy_collision(self):
+        bullet = Bullet(100, 100, self.bullet_img)
+        enemy = Enemy(100, 100, 5, self.enemy_img, 1)
+        bullets = pygame.sprite.Group(bullet)
+        enemies = pygame.sprite.Group(enemy)
+        score_increase = CollisionHandler.handle_bullet_enemy_collision(bullets, enemies)
+        self.assertEqual(score_increase, 10)
+        self.assertFalse(bullet.alive())
+        self.assertFalse(enemy.alive())
 
-    def test_create_enemies(self):
-        enemies = create_enemies(5, 2)
-        self.assertEqual(len(enemies), 5)
-        for enemy in enemies:
-            self.assertIn('x', enemy)
-            self.assertIn('y', enemy)
-            self.assertIn('speedX', enemy)
-            self.assertIn('angle', enemy)
-            self.assertIn('life', enemy)
-            self.assertIn('image', enemy)
+    def test_bullet_boss_collision(self):
+        bullet = Bullet(100, 100, self.bullet_img)
+        boss = Boss(100, 100, 5, 1, self.boss_img)
+        bullets = pygame.sprite.Group(bullet)
+        bosses = pygame.sprite.Group(boss)
+        score_increase = CollisionHandler.handle_bullet_boss_collision(bullets, bosses)
+        self.assertEqual(score_increase, 100)
+        self.assertFalse(bullet.alive())
+        self.assertFalse(boss.alive())
 
-    def test_create_boss(self):
-        boss = create_boss()
-        self.assertEqual(len(boss), 1)
-        self.assertIn('x', boss[0])
-        self.assertIn('y', boss[0])
-        self.assertIn('speedX', boss[0])
-        self.assertIn('angle', boss[0])
-        self.assertIn('life', boss[0])
-        self.assertIn('image', boss[0])
+    def test_boss_creation(self):
+        self.assertIsNone(self.game.create_boss())
+        self.game.level = MAX_LEVELS
+        boss = self.game.create_boss()
+        self.assertIsNotNone(boss)
+        self.assertEqual(boss.life, BOSS_LIFE)
 
 if __name__ == "__main__":
     unittest.main()
