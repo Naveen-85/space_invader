@@ -1,3 +1,4 @@
+from typing import List
 import pygame
 import math
 import random
@@ -116,7 +117,7 @@ class CollisionHandler:
         return sprite1.rect.colliderect(sprite2.rect)
 
     @staticmethod
-    def handle_bullet_enemy_collision(bullets, enemies):
+    def handle_bullet_enemy_collision(bullets, enemies) -> int:
         score_increase = 0
         for bullet in bullets:
             if bullet.active:
@@ -192,7 +193,7 @@ class Game:
         self.running = True
         self.game_over = False
 
-    def create_enemies(self, num_enemies, level):
+    def create_enemies(self, num_enemies, level) -> List[Enemy]:
         enemies = []
         for _ in range(num_enemies):
             enemy_img = self.enemy_img1 if level < 2 else self.enemy_img2
@@ -220,7 +221,7 @@ class Game:
     def draw_image(self, image, x, y):
         self.screen.blit(image, (x, y))
 
-    def draw_text(self, message, font_size, color, position):
+    def draw_text(self, message, font_size, color, position) -> None:
         font = pygame.font.SysFont(None, font_size)
         text_surface = font.render(message, True, color)
         self.screen.blit(text_surface, position)
