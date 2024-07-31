@@ -52,15 +52,6 @@ icon = pygame.image.load("alien.png")
 pygame.display.set_icon(icon)
 
 # Load images
-<<<<<<< Updated upstream
-playerIm = pygame.image.load('otaku.png')
-enemyIm1 = pygame.image.load('oni.png')
-enemyIm2 = pygame.image.load('oni2.png')
-bossIm = pygame.image.load('oni_boss.png')
-background = pygame.image.load('space_ia.jpg')
-bullet_image = pygame.image.load('bullet original.png')
-boss_bullet_image = pygame.image.load('bullet original.png')
-=======
 playerIm = pygame.image.load("otaku.png")
 enemyIm1 = pygame.image.load("oni.png")
 enemyIm2 = pygame.image.load("oni2.png")
@@ -68,7 +59,6 @@ bossIm = pygame.image.load("oni_boss.png")
 background = pygame.image.load("space_ia.jpg")
 bullet_image = pygame.image.load("bullet.png")
 boss_bullet_image = pygame.image.load("bullet.png")
->>>>>>> Stashed changes
 
 # Adding Background music
 mixer.music.load("background.wav")
@@ -178,10 +168,6 @@ def update_player_position():
         playerX = SCREEN_WIDTH - playerIm.get_width()
     playerY = PLAYER_Y + 25 * math.sin(math.radians(angle))
 
-<<<<<<< Updated upstream
-=======
-
->>>>>>> Stashed changes
 def update_enemy_positions():
     global ENEMY_SPEED_X, enemies
     if not enemies:
@@ -219,18 +205,6 @@ def update_bullets():
                 continue
             check_bullet_collision(bullet)
 
-<<<<<<< Updated upstream
-def check_bullet_collision(bullet):
-    global score, enemies
-    for enemy in enemies[:]:
-        if (enemy['x'] < bullet['x'] + bullet_width < enemy['x'] + ENEMY_WIDTH or
-            enemy['x'] < bullet['x'] < enemy['x'] + ENEMY_WIDTH) and \
-           (enemy['y'] < bullet['y'] + bullet_height < enemy['y'] + ENEMY_HEIGHT or
-            enemy['y'] < bullet['y'] < enemy['y'] + ENEMY_HEIGHT):
-            enemy['life'] -= 1
-            bullet['active'] = False
-            if enemy['life'] <= 0:
-=======
 
 def check_bullet_collision(bullet):
     global score, enemies
@@ -245,7 +219,6 @@ def check_bullet_collision(bullet):
             enemy["life"] -= 1
             bullet["active"] = False
             if enemy["life"] <= 0:
->>>>>>> Stashed changes
                 enemies.remove(enemy)
                 collision_sound.play()
                 score += 10
@@ -328,14 +301,9 @@ def update_boss_position():
     b["x"] += b["speedX"]
     b["y"] += 0.1 * math.sin(math.radians(b["angle"]))
 
-<<<<<<< Updated upstream
-    if b['x'] < 0 or b['x'] > SCREEN_WIDTH - ENEMY_WIDTH:
-        b['speedX'] *= -1
-=======
     if b["x"] < 0 or b["x"] > SCREEN_WIDTH - ENEMY_WIDTH:
         b["speedX"] *= -1
 
->>>>>>> Stashed changes
 
 def update_boss_bullets():
     for bullet in boss_bullets[:]:
@@ -382,10 +350,6 @@ def check_bullet_boss_collision():
                     return True
     return False
 
-<<<<<<< Updated upstream
-=======
-
->>>>>>> Stashed changes
 def main():
     global angle, running, enemies, boss, level, score, boss_shoot_timer
 
@@ -457,13 +421,9 @@ def handle_level_completion():
     if level < MAX_LEVELS:
         level_message = show_level_message(level)
         if level_message == "next":
-            level += 1
-<<<<<<< Updated upstream
-            #ENEMY_SPEED_X = 0.5 + 0.1 * (level - 1)
-=======
             # ENEMY_SPEED_X = 0.5 + 0.1 * (level - 1)
->>>>>>> Stashed changes
             enemies = create_enemies(NUM_ENEMIES, level)
+            level += 1
         elif level_message == "repeat":
             enemies = create_enemies(NUM_ENEMIES, level)
     else:
