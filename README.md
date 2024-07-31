@@ -19,13 +19,14 @@ Follow these steps to set up the project on your local machine:
      python main.py
  6. Running Test
      python -m unittest discover
-Source
+>Source
 The assets (images, sounds, graphics) used in this project are sourced from the following resources, and are intended for academic purposes. They are open source and do not have any copyright restrictions:
 
-YouTube Tutorial:" https://www.youtube.com/watch?v=8GF6O6vNXCc&list=PLhTjy8cBISEo3SzET7Fc3-b4miKWp41yX&ab_channel=buildwithpython"
+>YouTube Tutorial:" https://www.youtube.com/watch?v=8GF6O6vNXCc&list=PLhTjy8cBISEo3SzET7Fc3-b4miKWp41yX&ab_channel=buildwithpython"
 Flaticon :" https://www.flaticon.com/"
-LLM Models:
-Chatgpt4 
+>LLM Models:
+Chatgpt4
+>UML DIAGRAM is available in space_invader_UML Diagram.jpg 
  
 
 
