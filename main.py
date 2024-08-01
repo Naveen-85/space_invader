@@ -4,7 +4,6 @@ import math
 import random
 from pygame import mixer
 
-# Initialize all pygame functions
 pygame.init()
 
 # Constants
@@ -106,7 +105,7 @@ class BossBullet(Bullet):
 
     def update(self):
         if self.active:
-            self.rect.y += BULLET_SPEED  # Ajustar la velocidad del bullet del jefe
+            self.rect.y += BULLET_SPEED 
             if self.rect.y > SCREEN_HEIGHT:
                 self.kill()
 
@@ -229,9 +228,9 @@ class Game:
     def handle_input(self):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
-            self.player.move(-PLAYER_SPEED // 2)  # Ajustar la velocidad del jugador
+            self.player.move(-PLAYER_SPEED // 2)  
         elif keys[pygame.K_RIGHT]:
-            self.player.move(PLAYER_SPEED // 2)  # Ajustar la velocidad del jugador
+            self.player.move(PLAYER_SPEED // 2)  
         else:
             self.player.move(0)
 
